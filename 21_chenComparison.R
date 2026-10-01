@@ -29,12 +29,17 @@
 #            chen_cdeQTL_merged.csv      tests present in both analyses
 #            byTissue/<tissue>_merged.csv  the same, one file per tissue
 #            chen_cdeQTL_summary.csv     counts per tissue and status
+#            cache/                      intermediate results; a rerun resumes from
+#                                        them (delete after changing inputs)
 # =============================================================================
 
 .a <- commandArgs(FALSE); .f <- sub('^--file=', '', .a[grep('^--file=', .a)])
 source(file.path(if (length(.f)) dirname(normalizePath(.f)) else '.', '00_config.R'))
 OUT_DIR <- paste0(CHEN_DIR, 'chenComparison/')
+CACHE_DIR <- paste0(OUT_DIR, 'cache/')
 dir.create(paste0(OUT_DIR, 'byTissue'), recursive = TRUE, showWarnings = FALSE)
+dir.create(CACHE_DIR, showWarnings = FALSE)
+stamp <- function(...) message(format(Sys.time(), '%H:%M:%S  '), ...)
 
 geneBase <- function(x) sub('\\..*', '', x)
 addChr   <- function(x) ifelse(startsWith(x, 'chr'), x, paste0('chr', x))
@@ -51,57 +56,75 @@ if (anyNA(tissueMap)) stop('Chen files without a GTEx tissue: ',
                            paste(names(tissueMap)[is.na(tissueMap)], collapse = ', '))
 message(length(chenFiles), ' Chen tissue files, all matched to GTEx tissues')
 
-# --- Chen et al. tests ------------------------------------------------------------
-chen <- rbindlist(lapply(seq_along(chenFiles), function(k) {
-  fread(chenFiles[k], sep = '\t', colClasses = list(character = c('ID', 'Chromosome', 'REF', 'ALT'))) %>%
-    mutate(tissue = tissueMap[[chenTissue[k]]])
-})) %>%
-  mutate(chr = addChr(Chromosome), geneBase = geneBase(rhyGene.ID))
-message('Chen tests: ', nrow(chen))
+# Parts 1 and the rsID mapping read the 3M Chen tests and the full lookup
+# table; their result is cached. Delete cache/ to recompute from the inputs.
+mapChen <- function() {
+  # --- Chen et al. tests ------------------------------------------------------------
+  chen <- rbindlist(lapply(seq_along(chenFiles), function(k) {
+    fread(chenFiles[k], sep = '\t', colClasses = list(character = c('ID', 'Chromosome', 'REF', 'ALT'))) %>%
+      mutate(tissue = tissueMap[[chenTissue[k]]])
+  })) %>%
+    mutate(chr = addChr(Chromosome), geneBase = geneBase(rhyGene.ID))
+  stamp('Chen tests: ', nrow(chen))
 
-# --- Part 1: TSS window -------------------------------------------------------------
-# TSS of every gene in any v10 tissue (identical across tissues). Joining on
-# chromosome as well keeps PAR genes (same base ID on chrX and chrY) apart.
-tss <- rbindlist(lapply(bedFiles, fread, select = 1:4)) %>%
-  distinct() %>%
-  rename(tss_chr = `#chr`, tss_start = start, tss_end = end) %>%
-  mutate(geneBase = geneBase(gene_id))
-stopifnot(!anyDuplicated(tss[, c('geneBase', 'tss_chr')]))
+  # --- Part 1: TSS window -------------------------------------------------------------
+  # TSS of every gene in any v10 tissue (identical across tissues). Joining on
+  # chromosome as well keeps PAR genes (same base ID on chrX and chrY) apart.
+  tss <- rbindlist(lapply(bedFiles, fread, select = 1:4)) %>%
+    distinct() %>%
+    rename(tss_chr = `#chr`, tss_start = start, tss_end = end) %>%
+    mutate(geneBase = geneBase(gene_id))
+  stopifnot(!anyDuplicated(tss[, c('geneBase', 'tss_chr')]))
 
-chen <- chen %>%
-  left_join(tss, by = c('geneBase', 'chr' = 'tss_chr')) %>%
-  mutate(distance_to_TSS = Position - tss_end,
-         inWindow = !is.na(tss_end) &
-           Position >= tss_start - TSS_WINDOW & Position <= tss_end + TSS_WINDOW)
-message('Chen tests whose gene has no TSS on the same chromosome in GTEx v10: ', sum(is.na(chen$tss_end)))
-message('Chen tests within TSS +/- ', TSS_WINDOW / 1000, ' kb: ', sum(chen$inWindow))
+  chen <- chen %>%
+    left_join(tss, by = c('geneBase', 'chr' = 'tss_chr')) %>%
+    mutate(distance_to_TSS = Position - tss_end,
+           inWindow = !is.na(tss_end) &
+             Position >= tss_start - TSS_WINDOW & Position <= tss_end + TSS_WINDOW)
+  message('Chen tests whose gene has no TSS on the same chromosome in GTEx v10: ', sum(is.na(chen$tss_end)))
+  message('Chen tests within TSS +/- ', TSS_WINDOW / 1000, ' kb: ', sum(chen$inWindow))
 
-inWin <- chen %>% filter(inWindow) %>% select(-inWindow)
+  inWin <- chen %>% filter(inWindow) %>% select(-inWindow)
 
-# --- Variant IDs: chr / pos / REF / ALT -> rsID ---------------------------------------
-lookupCols <- c('variant_id', 'chr', 'pos', 'ref', 'alt', 'rs_id_dbSNP155_GRCh38p13')
-lookup <- fread(GENOTYPE_LOOKUP, select = lookupCols)
-stopifnot(all(lookupCols %in% colnames(lookup)))
-lookup <- lookup[paste(chr, pos) %in% paste(inWin$chr, inWin$Position)]
-setnames(lookup, c('variant_id', 'rs_id_dbSNP155_GRCh38p13'), c('gtex_variant_id', 'rsID'))
+  # --- Variant IDs: chr / pos / REF / ALT -> rsID ---------------------------------------
+  lookupCols <- c('variant_id', 'chr', 'pos', 'ref', 'alt', 'rs_id_dbSNP155_GRCh38p13')
+  stamp('Reading the GTEx lookup table')
+  lookup <- fread(GENOTYPE_LOOKUP, select = lookupCols)
+  stopifnot(all(lookupCols %in% colnames(lookup)))
+  lookup <- lookup[paste(chr, pos) %in% paste(inWin$chr, inWin$Position)]
+  setnames(lookup, c('variant_id', 'rs_id_dbSNP155_GRCh38p13'), c('gtex_variant_id', 'rsID'))
 
-same    <- lookup %>% select(chr, Position = pos, REF = ref, ALT = alt, gtex_variant_id, rsID) %>%
-  mutate(allele_match = 'same')
-swapped <- lookup %>% select(chr, Position = pos, REF = alt, ALT = ref, gtex_variant_id, rsID) %>%
-  mutate(allele_match = 'swapped')
-alleles <- bind_rows(same, swapped) %>%
-  filter(rsID != '.') %>%
-  distinct(chr, Position, REF, ALT, .keep_all = TRUE)   # 'same' kept over 'swapped'
+  same    <- lookup %>% select(chr, Position = pos, REF = ref, ALT = alt, gtex_variant_id, rsID) %>%
+    mutate(allele_match = 'same')
+  swapped <- lookup %>% select(chr, Position = pos, REF = alt, ALT = ref, gtex_variant_id, rsID) %>%
+    mutate(allele_match = 'swapped')
+  alleles <- bind_rows(same, swapped) %>%
+    filter(rsID != '.') %>%
+    distinct(chr, Position, REF, ALT, .keep_all = TRUE)   # 'same' kept over 'swapped'
 
-inWin <- inWin %>% left_join(alleles, by = c('chr', 'Position', 'REF', 'ALT'))
-message('In-window Chen tests mapped to an rsID: ', sum(!is.na(inWin$rsID)), ' / ', nrow(inWin),
-        ' (', sum(inWin$allele_match == 'swapped', na.rm = TRUE), ' with REF/ALT swapped)')
-rsChen <- inWin %>% filter(startsWith(ID, 'rs'), !is.na(rsID))
-if (nrow(rsChen)) message('Chen rsID differs from the mapped rsID: ',
-                          sum(rsChen$ID != rsChen$rsID), ' / ', nrow(rsChen))
-rm(lookup, same, swapped, alleles)
+  inWin <- inWin %>% left_join(alleles, by = c('chr', 'Position', 'REF', 'ALT'))
+  message('In-window Chen tests mapped to an rsID: ', sum(!is.na(inWin$rsID)), ' / ', nrow(inWin),
+          ' (', sum(inWin$allele_match == 'swapped', na.rm = TRUE), ' with REF/ALT swapped)')
+  rsChen <- inWin %>% filter(startsWith(ID, 'rs'), !is.na(rsID))
+  if (nrow(rsChen)) message('Chen rsID differs from the mapped rsID: ',
+                            sum(rsChen$ID != rsChen$rsID), ' / ', nrow(rsChen))
+  chenCounts <- chen %>% count(tissue, name = 'chen_tests') %>%
+    left_join(chen %>% filter(inWindow) %>% count(tissue, name = 'in_window'), by = 'tissue')
+  list(inWin = inWin, chenCounts = chenCounts)
+}
+mapCache <- paste0(CACHE_DIR, 'chen_inWindow_mapped.rds')
+if (file.exists(mapCache)) {
+  message('Reading cached window filter and rsID mapping: ', mapCache)
+  mapped <- readRDS(mapCache)
+} else {
+  mapped <- mapChen()
+  saveRDS(mapped, mapCache)
+}
+inWin <- mapped$inWin; chenCounts <- mapped$chenCounts; rm(mapped)
+invisible(gc())
 
 # --- cd-eQTL scan -------------------------------------------------------------------
+stamp('Reading the genotype variant list')
 genotyped <- fread(paste0(GENOTYPE_PLINK, '.bim'), header = FALSE, select = 2)[[1]]   # rsIDs
 
 scanTissue <- function(t) {
@@ -118,8 +141,8 @@ scanTissue <- function(t) {
   if (file.exists(snpFile))
     candidates <- fread(snpFile) %>% transmute(geneBase = geneBase(gene_id), rsID = rs_id_dbSNP155_GRCh38p13)
   if (file.exists(lrtFile))
-    lrt <- fread(lrtFile) %>%
-      filter(str_detect(term, ':')) %>%
+    lrt <- fread(lrtFile, select = c('term', 'statistic', 'p.value', 'gene', 'variant')) %>%
+      filter(grepl(':', term, fixed = TRUE)) %>%
       distinct(gene, variant, .keep_all = TRUE) %>%
       mutate(p.adj = p.adjust(p.value, method = 'BH')) %>%   # within tissue, as in 04
       transmute(geneBase = geneBase(gene), rsID = variant,
@@ -131,15 +154,18 @@ scanTissue <- function(t) {
 
 # --- Part 2: merge per tissue ----------------------------------------------------------
 annotated <- lapply(sort(unique(inWin$tissue)), function(t) {
-  message('Tissue: ', t)
-  s <- scanTissue(t)
+  tissueCache <- paste0(CACHE_DIR, t, '.rds')
+  if (file.exists(tissueCache)) return(readRDS(tissueCache))
   d <- inWin %>% filter(tissue == t)
+  stamp('Tissue: ', t, ' (', nrow(d), ' in-window Chen tests)')
+  s <- scanTissue(t)
+  stamp('  scan output read: ', if (is.null(s$lrt)) 0 else nrow(s$lrt), ' interaction tests')
   if (!is.null(s$lrt)) d <- d %>% left_join(s$lrt, by = c('geneBase', 'rsID'))
   else d <- d %>% mutate(cdeQTL_gene_id = NA_character_, cdeQTL_LRT_statistic = NA_real_,
                          cdeQTL_p = NA_real_, cdeQTL_p.adj_BH = NA_real_, cdeQTL = NA)
   candidatePair <- if (is.null(s$candidates)) rep(FALSE, nrow(d)) else
     paste(d$geneBase, d$rsID) %in% paste(s$candidates$geneBase, s$candidates$rsID)
-  d %>% mutate(status = case_when(
+  d <- d %>% mutate(status = case_when(
     !is.na(cdeQTL_p)               ~ 'tested in both',
     is.na(rsID)                    ~ 'variant not in GTEx lookup',
     !s$scanned                     ~ 'tissue not in 01 output',
@@ -148,6 +174,8 @@ annotated <- lapply(sort(unique(inWin$tissue)), function(t) {
     !rsID %in% genotyped           ~ 'variant not in genotype subset',
     !candidatePair                 ~ 'not in scan variant list',
     TRUE                           ~ 'heterozygote frequency filter'))
+  saveRDS(d, tissueCache)
+  d
 })
 inWin <- bind_rows(annotated)
 
@@ -168,9 +196,7 @@ fwrite(merged, paste0(OUT_DIR, 'chen_cdeQTL_merged.csv'))
 for (t in unique(merged$tissue))
   fwrite(merged %>% filter(tissue == t), paste0(OUT_DIR, 'byTissue/', t, '_merged.csv'))
 
-tissueSummary <- chen %>%
-  count(tissue, name = 'chen_tests') %>%
-  left_join(chen %>% filter(inWindow) %>% count(tissue, name = 'in_window'), by = 'tissue') %>%
+tissueSummary <- chenCounts %>%
   left_join(inWin %>% count(tissue, status) %>% pivot_wider(names_from = status, values_from = n),
             by = 'tissue') %>%
   mutate(across(where(is.numeric), ~ replace_na(.x, 0L)))
