@@ -91,16 +91,3 @@ Beyond that: 08 needs 07, 10 needs 09, 12 and 13 need 11, 15 needs 14, 16 needs 
 Figures 3, 4 and 5 were assembled or annotated by hand from these panels
 (headers, colour boxes, category bars). Figure legends are in the manuscript.
 
-## Numbers quoted in the text
-
-| Result | Where it is printed / written |
-|---|---|
-| 4,033 rhythmic gene-tissue pairs in 49 of 50 tissues; 439 in skeletal muscle | 04 log; Supplementary Table 1 |
-| 167 cd-eQTL, 54 independent, 51 genes, 28 tissues | 04 log; Supplementary Tables 2-3 |
-| 51 of 54 validated by dryR | 13 log; Supplementary Table 5 |
-| Pearson r = 0.95 (amplitude), 0.92 (acrophase) | 10 log |
-| 28 amplitude, 13 acrophase, 10 both, 3 undetermined | 07 and 08 logs; Supplementary Table 6 |
-| CCG vs CRG similarity (W, p) for both definitions | `Results/inferred/rhythmicityParameters/cosineSimilarity_CCGvsCRG_tests.csv` (15) |
-| Mean pairwise similarity of the example loci | 16 log |
-| 49 cd-eQTL in Pan-UKB; 310 associations, 100 phenotypes, 34 variants | 19 log; Supplementary Table 13 |
-| Chen et al. comparison: lowest interaction p; AIF1 per-genotype and joint p | 20 log; Supplementary Table 14 |
