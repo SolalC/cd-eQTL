@@ -57,6 +57,7 @@ how it is run, and which figure or table it produces. Everything is in R.
 | 18 | `18_supTables7to10.R` | `.sh` | Example loci: per-genotype amplitude and acrophase in the 49 tissues |
 | 19 | `19_figure5_phewas.R` | none | PheWAS (p < 0.05/1,085) |
 | 20 | `20_chenComparison.R` | `.sh` | Interaction model applied to the Chen et al. associations; AIF1 example |
+| 21 | `21_chenComparison.R` | `.sh` | Chen et al. Supplementary Data 2 tests within the TSS window, merged per tissue with the cd-eQTL scan |
 | 21 | `21_supplementaryWorkbook.R` | none | All supplementary tables in one workbook with legends |
 
 Dependencies: 02 needs 01; 03 needs 01; 04 needs 02 and 03; all later steps need 04.
