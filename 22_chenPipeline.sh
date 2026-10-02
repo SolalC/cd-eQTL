@@ -13,5 +13,5 @@
 
 # Submit from this folder after 04: sbatch 22_chenPipeline.sh
 cd "${SLURM_SUBMIT_DIR}"
-module load r/4.4.0-combo-EPYC3-only
+module load r/4.4.2-heavy
 Rscript 22_chenPipeline.R
