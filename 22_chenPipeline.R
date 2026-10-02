@@ -34,6 +34,10 @@
 #   - BH in step 5 is over all of Chen's tests in the tissue, which cannot be
 #     reproduced for 54 loci. The raw HANOVA p is reported; `rhyQTL` uses raw
 #     p < 0.05, an upper bound on what Chen would call.
+#   - Step 2 in Chen is one random draw, so its outcome depends on the seed.
+#     Here it is repeated N_STEP2 times and passes when at least half the draws
+#     give model 2, 3 or 5 (`step2_pass_rate`). Chen's single-draw outcome is
+#     kept as `step2_dryR_once`.
 #   - Genotype groups are rounded dosages from our plink set (GTEx v9), not the
 #     GTEx v8 VCF. Groups are ordered by size, as in Chen, so allele coding
 #     does not matter.
@@ -56,6 +60,7 @@ set.seed(1)
 MIN_SIZE <- 50          # 0_0: donors per genotype group
 PERIOD   <- 24
 N_DRAWS  <- 20          # 0_3: downsampling repeats
+N_STEP2  <- 100         # 0_2 is a single random draw; repeat it to estimate the pass rate
 
 # --- Chen et al. functions ------------------------------------------------------------
 
@@ -147,7 +152,18 @@ chenLocus <- function(d) {
   tmp2 <- tmp[tmp$genotype %in% num$Var1[1:2], ]
   once <- tryCatch(randomSampleTest(tmp2, num), error = function(e) NULL)
   out$dryR_once_model <- if (is.null(once)) NA_integer_ else once$model
-  out$step2_dryR <- !is.na(out$dryR_once_model) & !out$dryR_once_model %in% c(1, 4)
+  out$step2_dryR_once <- !is.na(out$dryR_once_model) & !out$dryR_once_model %in% c(1, 4)
+  # Chen's call rests on one subsample; estimate how often a single draw passes and call
+  # step 2 by majority so the result does not depend on the seed
+  m2 <- vapply(seq_len(N_STEP2), function(j) {
+    z <- tryCatch(randomSampleTest(tmp2, num), error = function(e) NULL)
+    if (is.null(z)) NA_integer_ else z$model
+  }, integer(1))
+  out$step2_n_fit     <- sum(!is.na(m2))
+  out$step2_pass_rate <- if (out$step2_n_fit) mean(!m2[!is.na(m2)] %in% c(1, 4)) else NA_real_
+  out$step2_model1_rate <- if (out$step2_n_fit) mean(m2[!is.na(m2)] == 1) else NA_real_
+  out$step2_model4_rate <- if (out$step2_n_fit) mean(m2[!is.na(m2)] == 4) else NA_real_
+  out$step2_dryR <- isTRUE(out$step2_pass_rate >= 0.5)
 
   # 3: 20 downsampled dryR, G-test
   draws <- lapply(seq_len(N_DRAWS), function(j) tryCatch(randomSampleTest(tmp2, num), error = function(e) NULL))
@@ -198,9 +214,10 @@ out <- bind_rows(res) %>%
       !step0_size         ~ 'Step 0: genotype groups < 50',
       !step1_pval         ~ 'Step 1: no group rhythmic at p < 0.01',
       !step1_amp          ~ 'Step 1: amplitude < log2(1.5)',
-      is.na(dryR_once_model) ~ 'Step 2: dryR fit failed',
-      dryR_once_model == 1 ~ 'Step 2: dryR model 1 (not rhythmic in either group)',
-      dryR_once_model == 4 ~ 'Step 2: dryR model 4 (same rhythm in both groups)',
+      is.na(step2_pass_rate) ~ 'Step 2: dryR fit failed',
+      !step2_dryR & step2_model1_rate >= step2_model4_rate ~
+        'Step 2: dryR model 1 (not rhythmic in either group)',
+      !step2_dryR         ~ 'Step 2: dryR model 4 (same rhythm in both groups)',
       !step3_gtest        ~ 'Step 3: G-test p >= 0.05',
       !step5_rhythm       ~ 'Step 5: rhythm p of max-amplitude group >= 5e-4',
       hanova_p >= 0.05    ~ 'Step 4: HANOVA p >= 0.05',
