@@ -31,9 +31,8 @@
 #     division is unstable when group means are near 0, as for residuals, so
 #     each group is mean-centred instead and HANOVA run with norm = FALSE.
 #   - Time is the CHIRAL donor phase in hours (DIP), the same source as the
-#     cd-eQTL scan. Chen read `GTEx_donor_time_science.txt`, whose name and
-#     `CorrectedTOD` column suggest the Talamanca et al. (Science 2023) donor
-#     times; not verified.
+#     cd-eQTL scan. Chen read `GTEx_donor_time_science.txt` (columns SUBJ.ID,
+#     hour), which is not public; its source is not stated in their repository.
 #   - BH in step 5 is over all of Chen's tests in the tissue, which cannot be
 #     reproduced for 54 loci. The raw HANOVA p is reported; `rhyQTL` uses raw
 #     p < 0.05, an upper bound on what Chen would call.
