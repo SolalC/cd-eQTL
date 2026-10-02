@@ -115,13 +115,6 @@ randomSampleTest <- function(tmp, num) {
   dryOnce(r$x, r$genotype, r$time)
 }
 
-# 0_3 G-test of the chosen-model counts against uniform, as in their code (p = 0 when
-# only one model is ever chosen)
-gTestUniform <- function(obs) {
-  if (length(obs) == 1) return(0)
-  GTest(obs, p = rep(1 / length(obs), length(obs)))$p.value
-}
-
 # --- One locus ----------------------------------------------------------------------------
 chenLocus <- function(d) {
   covTerms <- c(if ('sex' %in% colnames(d)) 'sex', 'platform', 'pcr',
@@ -170,10 +163,13 @@ chenLocus <- function(d) {
   draws <- lapply(seq_len(N_DRAWS), function(j) tryCatch(randomSampleTest(tmp2, num), error = function(e) NULL))
   models <- unlist(lapply(draws, function(z) z$model))
   if (length(models)) {
-    obs <- table(models)
-    out$gtest_p      <- gTestUniform(as.numeric(obs))
-    out$gtest_model  <- as.integer(names(obs)[which.max(obs)])
-    out$gtest_times  <- max(obs)
+    # their code, 0_3_rhythm_compare_multiple_times.R:104-111
+    observed <- as.data.frame(table(models))
+    if(nrow(observed) == 1){P = 0}else{
+      P <- GTest(observed$Freq, p = rep(1/nrow(observed), nrow(observed)))$p.value}
+    out$gtest_p      <- P
+    out$gtest_model  <- as.integer(as.character(observed$models[which.max(observed$Freq)]))
+    out$gtest_times  <- max(observed$Freq)
   }
   out$step3_gtest <- isTRUE(out$gtest_p < 0.05)
 
