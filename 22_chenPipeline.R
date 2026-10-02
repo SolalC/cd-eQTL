@@ -52,6 +52,7 @@ library(genio)
 library(broom)
 library(lmtest)
 library(dryR)
+library(DescTools)
 
 OUT_DIR <- paste0(CHEN_DIR, 'chenPipeline/')
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
@@ -114,11 +115,11 @@ randomSampleTest <- function(tmp, num) {
   dryOnce(r$x, r$genotype, r$time)
 }
 
-# G-test of observed counts against a uniform distribution (DescTools::GTest default)
+# 0_3 G-test of the chosen-model counts against uniform, as in their code (p = 0 when
+# only one model is ever chosen)
 gTestUniform <- function(obs) {
   if (length(obs) == 1) return(0)
-  e <- sum(obs) / length(obs)
-  pchisq(2 * sum(obs * log(obs / e)), df = length(obs) - 1, lower.tail = FALSE)
+  GTest(obs, p = rep(1 / length(obs), length(obs)))$p.value
 }
 
 # --- One locus ----------------------------------------------------------------------------
