@@ -26,10 +26,8 @@
 #     Their amplitude threshold log2(1.5) is on the log2 CPM scale, so it is
 #     applied here on a different scale (step 1 reports amplitudes; the call
 #     is also given without it, `rhyQTL_noAmpFilter`).
-#   - HANOVA: their models have no group intercept, and norm = TRUE (each group
-#     divided by its mean) is what removes the genotype main effect. That
-#     division is unstable when group means are near 0, as for residuals, so
-#     each group is mean-centred instead and HANOVA run with norm = FALSE.
+#   - HANOVA is run with norm = FALSE: their norm = TRUE divides each group by
+#     its mean, which is undefined for residuals centred on 0.
 #   - Time is the CHIRAL donor phase in hours (DIP), the same source as the
 #     cd-eQTL scan. Chen read `GTEx_donor_time_science.txt` (columns SUBJ.ID,
 #     hour), which is not public; its source is not stated in their repository.
@@ -164,9 +162,7 @@ chenLocus <- function(d) {
 
   # 4: HANOVA (norm = FALSE, see header)
   g1 <- tmp[tmp$genotype == num$Var1[1], ]; g2 <- tmp[tmp$genotype == num$Var1[2], ]
-  # Their models have no group intercept; norm = TRUE (x / group mean) is what
-  # removes the genotype main effect. On residuals we centre each group instead.
-  out$hanova_p <- HANOVA(g1$x - mean(g1$x), g2$x - mean(g2$x), g1$time, g2$time, PERIOD, norm = FALSE)
+  out$hanova_p <- HANOVA(g1$x, g2$x, g1$time, g2$time, PERIOD, norm = FALSE)
   out
 }
 
