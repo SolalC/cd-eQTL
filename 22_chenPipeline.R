@@ -195,16 +195,16 @@ out <- bind_rows(res) %>%
     rhyQTL_noAmpFilter = step0_size & step1_pval & step2_dryR & step3_gtest &
              step5_rhythm & hanova_p < 0.05,
     first_failed = case_when(
-      !step0_size         ~ '0 genotype groups < 50',
-      !step1_pval         ~ '1 no group rhythmic at p < 0.01',
-      !step1_amp          ~ '1 amplitude < log2(1.5)',
-      is.na(dryR_once_model) ~ '2 dryR fit failed',
-      dryR_once_model == 1 ~ '2 dryR model 1 (not rhythmic in either group)',
-      dryR_once_model == 4 ~ '2 dryR model 4 (same rhythm in both groups)',
-      !step3_gtest        ~ '3 G-test p >= 0.05',
-      !step5_rhythm       ~ '5 rhythm p of max-amplitude group >= 5e-4',
-      hanova_p >= 0.05    ~ '4 HANOVA p >= 0.05',
-      TRUE                ~ 'passes (HANOVA BH not applied)'))
+      !step0_size         ~ 'Step 0: genotype groups < 50',
+      !step1_pval         ~ 'Step 1: no group rhythmic at p < 0.01',
+      !step1_amp          ~ 'Step 1: amplitude < log2(1.5)',
+      is.na(dryR_once_model) ~ 'Step 2: dryR fit failed',
+      dryR_once_model == 1 ~ 'Step 2: dryR model 1 (not rhythmic in either group)',
+      dryR_once_model == 4 ~ 'Step 2: dryR model 4 (same rhythm in both groups)',
+      !step3_gtest        ~ 'Step 3: G-test p >= 0.05',
+      !step5_rhythm       ~ 'Step 5: rhythm p of max-amplitude group >= 5e-4',
+      hanova_p >= 0.05    ~ 'Step 4: HANOVA p >= 0.05',
+      TRUE                ~ 'Passes all steps (HANOVA BH not applied)'))
 
 fwrite(out, paste0(OUT_DIR, 'chenPipeline_54cdeQTL.csv'))
 print(out %>% count(first_failed, sort = TRUE))
