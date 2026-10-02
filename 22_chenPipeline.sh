@@ -13,5 +13,7 @@
 
 # Submit from this folder after 04: sbatch 22_chenPipeline.sh
 cd "${SLURM_SUBMIT_DIR}"
-module load r/4.4.2-heavy
+module load r/4.4.0-combo-EPYC3-only
+# TEMPORARY: install DescTools (Chen's G-test) into the user library if missing; remove once installed
+Rscript -e 'if (!requireNamespace("DescTools", quietly = TRUE)) install.packages("DescTools", repos = "https://cloud.r-project.org", lib = Sys.getenv("R_LIBS_USER"))'
 Rscript 22_chenPipeline.R
