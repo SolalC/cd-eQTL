@@ -221,6 +221,6 @@ out <- bind_rows(res) %>%
       TRUE                ~ 'Passes all steps (HANOVA BH not applied)'))
 
 fwrite(out, paste0(OUT_DIR, 'chenPipeline_54cdeQTL.csv'))
-print(out %>% count(first_failed, sort = TRUE))
+print(out %>% dplyr::count(first_failed, sort = TRUE))   # count() is masked by packages dryR attaches
 message('Called by the Chen pipeline: ', sum(out$rhyQTL, na.rm = TRUE), ' / ', nrow(out),
         ' (', sum(out$rhyQTL_noAmpFilter, na.rm = TRUE), ' without the amplitude filter)')
