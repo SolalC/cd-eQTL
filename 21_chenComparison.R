@@ -17,9 +17,6 @@
 #         rhythmic (Bonferroni, so not scanned), the variant is not in the
 #         genotype subset, it is not in the scan's variant list, or it failed
 #         the heterozygote-frequency filter (MAF_THRESHOLD).
-#         `cdeQTL_call` turns this into a first-failed call for our pipeline:
-#         Step 0 lookup, Step 1 tissue/gene (01), Step 2 variant selection (02),
-#         Step 3 interaction LRT p >= CDEQTL_P, else cd-eQTL.
 #
 # Genotype coding: Chen genotype groups 0/1/2 and the scan dosage may count
 # different alleles; check allele orientation before comparing effect
@@ -31,7 +28,7 @@
 #            chen_inWindow.csv           Chen tests within the window, with status
 #            chen_cdeQTL_merged.csv      tests present in both analyses
 #            byTissue/<tissue>_merged.csv  the same, one file per tissue
-#            chen_cdeQTL_summary.csv     counts per tissue and cdeQTL_call
+#            chen_cdeQTL_summary.csv     counts per tissue and status
 # =============================================================================
 
 .a <- commandArgs(FALSE); .f <- sub('^--file=', '', .a[grep('^--file=', .a)])
@@ -152,17 +149,7 @@ annotated <- lapply(sort(unique(inWin$tissue)), function(t) {
     !candidatePair                 ~ 'not in scan variant list',
     TRUE                           ~ 'heterozygote frequency filter'))
 })
-inWin <- bind_rows(annotated) %>%
-  mutate(cdeQTL_call = case_when(   # our pipeline, labelled by the first step that drops the test
-    status == 'variant not in GTEx lookup'      ~ 'Step 0: variant not in GTEx lookup',
-    status == 'tissue not in 01 output'         ~ 'Step 1: tissue not in 01 output',
-    status == 'gene not in GTEx v10 tissue'     ~ 'Step 1: gene not in GTEx v10 tissue',
-    status == 'gene not rhythmic (not scanned)' ~ 'Step 1: gene not rhythmic (Bonferroni)',
-    status == 'variant not in genotype subset'  ~ 'Step 2: variant not in genotype subset',
-    status == 'not in scan variant list'        ~ 'Step 2: not in scan variant list',
-    status == 'heterozygote frequency filter'   ~ 'Step 2: heterozygote frequency filter',
-    cdeQTL_p >= CDEQTL_P                        ~ paste0('Step 3: interaction LRT p >= ', CDEQTL_P),
-    TRUE                                        ~ paste0('cd-eQTL (interaction LRT p < ', CDEQTL_P, ')')))
+inWin <- bind_rows(annotated)
 
 fwrite(inWin %>% select(-geneBase), paste0(OUT_DIR, 'chen_inWindow.csv'))
 
@@ -176,7 +163,7 @@ merged <- inWin %>%
          chen_pval_0 = pval_0, chen_phase_0 = phase_0, chen_amp_0 = amp_0,
          chen_pval_1 = pval_1, chen_phase_1 = phase_1, chen_amp_1 = amp_1,
          chen_Chosen.model = Chosen.model, chen_G.test_pval = G.test_pval, chen_pval = pval,
-         cdeQTL_LRT_statistic, cdeQTL_p, cdeQTL_p.adj_BH, cdeQTL, cdeQTL_call)
+         cdeQTL_LRT_statistic, cdeQTL_p, cdeQTL_p.adj_BH, cdeQTL)
 fwrite(merged, paste0(OUT_DIR, 'chen_cdeQTL_merged.csv'))
 for (t in unique(merged$tissue))
   fwrite(merged %>% filter(tissue == t), paste0(OUT_DIR, 'byTissue/', t, '_merged.csv'))
@@ -184,10 +171,10 @@ for (t in unique(merged$tissue))
 tissueSummary <- chen %>%
   count(tissue, name = 'chen_tests') %>%
   left_join(chen %>% filter(inWindow) %>% count(tissue, name = 'in_window'), by = 'tissue') %>%
-  left_join(inWin %>% dplyr::count(tissue, cdeQTL_call) %>%
-              pivot_wider(names_from = cdeQTL_call, values_from = n), by = 'tissue') %>%
+  left_join(inWin %>% count(tissue, status) %>% pivot_wider(names_from = status, values_from = n),
+            by = 'tissue') %>%
   mutate(across(where(is.numeric), ~ replace_na(.x, 0L)))
 fwrite(tissueSummary, paste0(OUT_DIR, 'chen_cdeQTL_summary.csv'))
 
 message('Tests in both analyses: ', nrow(merged), ' in ', n_distinct(merged$tissue), ' tissues')
-print(inWin %>% dplyr::count(cdeQTL_call, sort = TRUE))
+print(inWin %>% count(status, sort = TRUE))
