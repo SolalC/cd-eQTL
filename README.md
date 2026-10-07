@@ -60,6 +60,7 @@ how it is run, and which figure or table it produces. Everything is in R.
 | 21 | `21_chenComparison.R` | `.sh` | Chen et al. Supplementary Data 2 tests within the TSS window, merged per tissue with the cd-eQTL scan |
 | 21 | `21_supplementaryWorkbook.R` | none | All supplementary tables in one workbook with legends |
 | 22 | `22_chenPipeline.R` | `.sh` | Chen et al. rhyQTL pipeline (genotype-group, cosinor, dryR, G-test, HANOVA filters) applied to the 54 independent cd-eQTL |
+| 23 | `23_ldPruning.R` | `.sh` | LD pruning of the cd-eQTL with plink --clump (r2 < 0.1 and r2 < 0.01), within gene x tissue and across all genes and tissues |
 
 Dependencies: 02 needs 01; 03 needs 01; 04 needs 02 and 03; all later steps need 04.
 Beyond that: 08 needs 07, 10 needs 09, 12 and 13 need 11, 15 needs 14, 16 needs 15,
@@ -87,7 +88,8 @@ Beyond that: 08 needs 07, 10 needs 09, 12 and 13 need 11, 15 needs 14, 16 needs 
 | Supplementary Tables 7-10 | 18 | `SupTable_{7,8,9,10}_*.csv` |
 | Supplementary Tables 11-12 | 15 (data from 14) | `SupTable_{11,12}_*_cosineSimilarity.csv` |
 | Supplementary Table 13 | 19 | `SupTable_13_PheWAS.csv` |
-| Supplementary Table 14 | 20 | `SupTable_14_ChenComparison.csv` |
+| Supplementary Table 14 | 21 (`21_chenComparison.R`) | `Results/published/chenComparison/chen_cdeQTL_merged.csv` |
+| Supplementary Table 15 | 22 | `Results/published/chenPipeline/chenPipeline_54cdeQTL.csv` |
 | Workbook | 21 | `Supplementary_Tables.xlsx` |
 
 Figures 3, 4 and 5 were assembled or annotated by hand from these panels

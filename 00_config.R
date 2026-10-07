@@ -36,7 +36,7 @@ GENOTYPE_LOOKUP <- paste0('/QRISdata/Q8106/Controlled/Genotype/support_files/',
 DIP_FILE        <- paste0(ROOT, 'Data/CHIRAL/DIP.RData')
 # GTEx v10 sample size per tissue (Figure 1b)
 SAMPLE_SIZE     <- paste0(ROOT, 'Data/PhenotypeFile/GTEx_v10_sample_size.csv')
-# Associations named by Chen et al. 2025 (Supplementary Table 14)
+# Associations named by Chen et al. 2025 (20_chenComparison)
 CHEN_ASSOC      <- paste0(ROOT, 'Data/published/associationListPublished.csv')
 # Chen et al. 2025 Supplementary Data 2: rhythmic eQTL tests, one file per tissue
 CHEN_SUPPDATA2  <- paste0(RESULTS_DIR, 'published/SupplementaryData2/')
