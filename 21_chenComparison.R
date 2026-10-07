@@ -17,15 +17,24 @@
 #         rhythmic (Bonferroni, so not scanned), the variant is not in the
 #         genotype subset, it is not in the scan's variant list, or it failed
 #         the heterozygote-frequency filter (MAF_THRESHOLD).
+# Part 3  Each in-window Chen test is scored with Chen's own criteria on Chen's
+#         reported values, nothing refitted, with the step labels of 22
+#         (`chen_first_failed`). The single dryR draw of step 2 (0_2) is not
+#         reported: step 2 uses Chosen.model, the majority model of their 20
+#         draws (0_3), which their own 0_3 `.filter` also drops when it is 1 or
+#         4. `pval` is taken as the raw HANOVA p; their BH over all tests in the
+#         tissue cannot be recomputed from the hits alone.
 #
-# Genotype coding: Chen genotype groups 0/1/2 and the scan dosage may count
-# different alleles; check allele orientation before comparing effect
-# directions. The merged table carries p-values only.
+# Chen's columns: Sample.size.0/1/2 are the genotype-group sizes sorted largest
+# first, not genotypes 0/1/2, and pval/phase/amp _0 and _1 are the cosinor of
+# the largest and second-largest group (0_1_rhythm_regression.R, Regression()).
+# The merged table carries p-values only.
 #
 # Run:     sbatch 21_chenComparison.sh        (after 01 and 02)
 # Inputs:  Results/published/SupplementaryData2/<Chen tissue>.txt
 # Outputs: Results/published/chenComparison/
 #            chen_inWindow.csv           Chen tests within the window, with status
+#                                        and chen_first_failed
 #            chen_cdeQTL_merged.csv      tests present in both analyses
 #            byTissue/<tissue>_merged.csv  the same, one file per tissue
 #            chen_cdeQTL_summary.csv     counts per tissue and status
@@ -77,6 +86,24 @@ message('Chen tests whose gene has no TSS on the same chromosome in GTEx v10: ',
 message('Chen tests within TSS +/- ', TSS_WINDOW / 1000, ' kb: ', sum(chen$inWindow))
 
 inWin <- chen %>% filter(inWindow) %>% select(-inWindow)
+
+# --- Part 3: Chen's criteria on Chen's values (step labels as in 22) -----------------
+pMaxAmp <- with(inWin, ifelse(amp_0 >= amp_1, pval_0, pval_1))   # which.max in 0_5: first on ties
+inWin <- inWin %>%
+  mutate(chen_first_failed = case_when(
+    is.na(pMaxAmp) | is.na(Chosen.model) | is.na(G.test_pval) | is.na(pval) |
+      is.na(Sample.size.2)                          ~ 'Not scored: missing value',
+    (Sample.size.0 >= 50) + (Sample.size.1 >= 50) + (Sample.size.2 >= 50) < 2
+                                                    ~ 'Step 0: genotype groups < 50',
+    pmin(pval_0, pval_1) >= 0.01                    ~ 'Step 1: no group rhythmic at p < 0.01',
+    pmax(amp_0, amp_1) <= log2(1.5)                 ~ 'Step 1: amplitude < log2(1.5)',
+    Chosen.model == 1                               ~ 'Step 2: dryR model 1 (not rhythmic in either group)',
+    Chosen.model == 4                               ~ 'Step 2: dryR model 4 (same rhythm in both groups)',
+    G.test_pval >= 0.05                             ~ 'Step 3: G-test p >= 0.05',
+    pMaxAmp >= 5e-4                                 ~ 'Step 5: rhythm p of max-amplitude group >= 5e-4',
+    pval >= 0.05                                    ~ 'Step 4: HANOVA p >= 0.05',
+    TRUE                                            ~ 'Passes all steps'))
+rm(pMaxAmp)
 
 # --- Variant IDs: chr / pos / REF / ALT -> rsID ---------------------------------------
 lookupCols <- c('variant_id', 'chr', 'pos', 'ref', 'alt', 'rs_id_dbSNP155_GRCh38p13')
@@ -163,6 +190,7 @@ merged <- inWin %>%
          chen_pval_0 = pval_0, chen_phase_0 = phase_0, chen_amp_0 = amp_0,
          chen_pval_1 = pval_1, chen_phase_1 = phase_1, chen_amp_1 = amp_1,
          chen_Chosen.model = Chosen.model, chen_G.test_pval = G.test_pval, chen_pval = pval,
+         chen_first_failed,
          cdeQTL_LRT_statistic, cdeQTL_p, cdeQTL_p.adj_BH, cdeQTL)
 fwrite(merged, paste0(OUT_DIR, 'chen_cdeQTL_merged.csv'))
 for (t in unique(merged$tissue))
@@ -178,3 +206,4 @@ fwrite(tissueSummary, paste0(OUT_DIR, 'chen_cdeQTL_summary.csv'))
 
 message('Tests in both analyses: ', nrow(merged), ' in ', n_distinct(merged$tissue), ' tissues')
 print(inWin %>% count(status, sort = TRUE))
+print(inWin %>% count(chen_first_failed, sort = TRUE))
