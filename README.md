@@ -87,7 +87,8 @@ Beyond that: 08 needs 07, 10 needs 09, 12 and 13 need 11, 15 needs 14, 16 needs 
 | Supplementary Tables 7-10 | 18 | `SupTable_{7,8,9,10}_*.csv` |
 | Supplementary Tables 11-12 | 15 (data from 14) | `SupTable_{11,12}_*_cosineSimilarity.csv` |
 | Supplementary Table 13 | 19 | `SupTable_13_PheWAS.csv` |
-| Supplementary Table 14 | 20 | `SupTable_14_ChenComparison.csv` |
+| Supplementary Table 14 | 21 (`21_chenComparison.R`) | `Results/published/chenComparison/chen_cdeQTL_merged.csv` |
+| Supplementary Table 15 | 22 | `Results/published/chenPipeline/chenPipeline_54cdeQTL.csv` |
 | Workbook | 21 | `Supplementary_Tables.xlsx` |
 
 Figures 3, 4 and 5 were assembled or annotated by hand from these panels

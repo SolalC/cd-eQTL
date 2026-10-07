@@ -1,9 +1,9 @@
 # =============================================================================
 # 20  Comparison with Chen et al. (2025)
 #
-#   Supplementary Table 14  the joint interaction model (three nested models,
-#                           as in 02) applied to the associations named by Chen
-#                           et al., in GTEx v10
+#   The joint interaction model (three nested models, as in 02) applied to the
+#   associations named by Chen et al., in GTEx v10 (no longer a supplementary
+#   table; Supplementary Table 14 is built by 21_chenComparison)
 #   Supplementary Figure 4  AIF1 / rs7740525 / heart left ventricle, expression
 #                           against DIP by genotype. The per-panel p is a
 #                           rhythmicity LRT within the genotype group
@@ -12,7 +12,7 @@
 #                           all covariates.
 #
 # Run:     sbatch 20_chenComparison.sh
-# Outputs: Supplementary_Tables/SupTable_14_ChenComparison.csv
+# Outputs: Results/published/publishedReplication_LRT.csv
 #          Supplementary_Figures/SuppFigure_4_AIF1_ChenComparison.{jpeg,pdf}
 #          Results/published/publishedReplication_harmonicInteraction.csv
 # =============================================================================
@@ -26,7 +26,7 @@ library(lmtest)
 tod   <- loadDIP()
 plink <- loadGenotypes()
 
-# --- Supplementary Table 14 --------------------------------------------------------
+# --- Named associations ------------------------------------------------------------
 published <- fread(CHEN_ASSOC)
 colnames(published) <- c('SNP', 'Gene', 'Tissue', 'Effect', 'Amplitude', 'pvalue', 'N')
 
@@ -67,7 +67,7 @@ for (i in seq_len(nrow(triplets))) {
   lrtAll  <- rbind(lrtAll,  result$lrt  %>% mutate(gene_name = t$Gene))
   coefAll <- rbind(coefAll, result$coef %>% mutate(gene_name = t$Gene, tissue = t$tissueName))
 }
-fwrite(lrtAll,  paste0(TABLE_DIR, 'SupTable_14_ChenComparison.csv'))
+fwrite(lrtAll,  paste0(CHEN_DIR, 'publishedReplication_LRT.csv'))
 fwrite(coefAll, paste0(CHEN_DIR, 'publishedReplication_harmonicInteraction.csv'))
 message('Smallest interaction p: ', signif(min(lrtAll$p.value[str_detect(lrtAll$term, ':')]), 3))
 
