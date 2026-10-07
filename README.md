@@ -60,7 +60,7 @@ how it is run, and which figure or table it produces. Everything is in R.
 | 21 | `21_chenComparison.R` | `.sh` | Chen et al. Supplementary Data 2 tests within the TSS window, merged per tissue with the cd-eQTL scan |
 | 21 | `21_supplementaryWorkbook.R` | none | All supplementary tables in one workbook with legends |
 | 22 | `22_chenPipeline.R` | `.sh` | Chen et al. rhyQTL pipeline (genotype-group, cosinor, dryR, G-test, HANOVA filters) applied to the 54 independent cd-eQTL |
-| 23 | `23_ldPruning.R` | `.sh` | LD pruning of the cd-eQTL within gene x tissue (greedy clumping on p, r2 < 0.1 and r2 < 0.01) |
+| 23 | `23_ldPruning.R` | `.sh` | LD pruning of the cd-eQTL (greedy clumping on p, r2 < 0.1 and r2 < 0.01), within gene x tissue and across all genes and tissues |
 
 Dependencies: 02 needs 01; 03 needs 01; 04 needs 02 and 03; all later steps need 04.
 Beyond that: 08 needs 07, 10 needs 09, 12 and 13 need 11, 15 needs 14, 16 needs 15,
