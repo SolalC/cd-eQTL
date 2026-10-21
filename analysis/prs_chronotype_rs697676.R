@@ -232,26 +232,33 @@ tests <- data.table(score = c('prs_z', 'prs_excl_locus_z'),
 tests[, c('beta', 'se', 't', 'p') := as.list(trend(pd[[score]])), by = score]
 print(tests)
 
+# Figure: locus-excluded score only, with the fitted slope. The label gives the
+# slope and its standard error (SD of the score per allele), not the SD of the data.
 GENO_COLS <- c('0' = '#96410e', '1' = '#e5a335', '2' = '#556219')
-long <- melt(pd, id.vars = c('SUBJID', 'rs697676'), measure.vars = tests$score,
-             variable.name = 'score', value.name = 'z')
-long <- merge(long, tests[, .(score, panel = sprintf('%s\nslope = %.3f SD per allele (SE %.3f), p = %.2g',
-                                                     label, beta, se, p))], by = 'score')
-long[, panel := factor(panel, levels = unique(panel[match(tests$score, score)]))]
-counts <- long[, .(n = .N, y = max(z)), by = .(panel, rs697676)]
+tx <- tests[score == 'prs_excl_locus_z']
+pd[, z := prs_excl_locus_z]
+counts <- pd[, .(n = .N, y = max(z)), by = rs697676]
+fitLine <- data.table(x = c(-0.3, 2.3))[, y := mean(pd$z) + tx$beta * (x - mean(pd$rs697676))]
+yTop <- max(pd$z) + 0.18 * diff(range(pd$z))
 
-pl <- ggplot(long, aes(factor(rs697676), z)) +
-  geom_boxplot(aes(fill = factor(rs697676)), outlier.shape = NA, width = 0.6, alpha = 0.5) +
+pl <- ggplot(pd, aes(rs697676, z)) +
+  geom_boxplot(aes(group = rs697676, fill = factor(rs697676)), outlier.shape = NA,
+               width = 0.6, alpha = 0.5) +
   geom_jitter(aes(colour = factor(rs697676)), width = 0.15, height = 0, size = 0.6, alpha = 0.6) +
+  geom_line(data = fitLine, aes(x, y), colour = 'grey20', linewidth = 0.7) +
   geom_text(data = counts, aes(y = y, label = paste0('n = ', n)), vjust = -0.6, size = 2.8) +
+  annotate('text', x = 1, y = yTop, size = 3.2, parse = TRUE,   # plotmath: no Unicode font needed
+           label = sprintf("beta %%+-%% SE == '%.3f' %%+-%% '%.3f' * ',' ~ italic(p) == '%.2g'",
+                           tx$beta, tx$se, tx$p)) +
+  scale_x_continuous(breaks = 0:2) +
   scale_fill_manual(values = GENO_COLS, guide = 'none') +
   scale_colour_manual(values = GENO_COLS, guide = 'none') +
-  scale_y_continuous(expand = expansion(mult = c(0.05, 0.12))) +
-  facet_wrap(~ panel, ncol = 2) +
-  labs(x = sprintf('%s: copies of the %s allele', SNP, snpRow$a1),
-       y = sprintf('%s chronotype score (z)', PGS_ID)) +
-  theme_minimal(base_size = 9) + theme(strip.text = element_text(size = 8))
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.08))) +
+  labs(title = 'PRS: Chronotype\nrs697676 excluded',
+       x = sprintf('%s: copies of the %s allele', SNP, snpRow$a1),
+       y = 'Chronotype PRS') +
+  theme_minimal(base_size = 9) + theme(plot.title = element_text(hjust = 0.5))
 
 pdfOut <- file.path(OUT_DIR, paste0(PGS_ID, '_by_', SNP, '.pdf'))
-pdf(pdfOut, width = 8, height = 4.2); print(pl); invisible(dev.off())
+pdf(pdfOut, width = 4.5, height = 4.2); print(pl); invisible(dev.off())
 message('Wrote ', pdfOut)
