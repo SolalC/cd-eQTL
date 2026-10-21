@@ -240,6 +240,13 @@ pd[, z := prs_excl_locus_z]
 counts <- pd[, .(n = .N, y = max(z)), by = rs697676]
 fitLine <- data.table(x = c(-0.3, 2.3))[, y := mean(pd$z) + tx$beta * (x - mean(pd$rs697676))]
 yTop <- max(pd$z) + 0.18 * diff(range(pd$z))
+# Direction arrows. Weights are ln(OR) for 'morning person' (Jones et al. 2019),
+# so a higher score = more morning alleles; set PRS_HIGHER=evening if the
+# scoring file turns out to be coded the other way.
+up   <- if (tolower(Sys.getenv('PRS_HIGHER', 'morning')) == 'evening') 'Night owl' else 'Early bird'
+down <- setdiff(c('Early bird', 'Night owl'), up)
+ax   <- 2.6; ay <- 0.25 * max(abs(pd$z))
+arrows <- data.table(y = c(ay, -ay), yend = c(ay + 1.2, -ay - 1.2), lab = c(up, down))
 
 pl <- ggplot(pd, aes(rs697676, z)) +
   geom_boxplot(aes(group = rs697676, fill = factor(rs697676)), outlier.shape = NA,
@@ -250,7 +257,11 @@ pl <- ggplot(pd, aes(rs697676, z)) +
   annotate('text', x = 1, y = yTop, size = 3.2, parse = TRUE,   # plotmath: no Unicode font needed
            label = sprintf("beta %%+-%% SE == '%.3f' %%+-%% '%.3f' * ',' ~ italic(p) == '%.2g'",
                            tx$beta, tx$se, tx$p)) +
-  scale_x_continuous(breaks = 0:2) +
+  geom_segment(data = arrows, aes(x = ax, xend = ax, y = y, yend = yend), inherit.aes = FALSE,
+               arrow = arrow(length = grid::unit(0.18, 'cm')), linewidth = 0.6) +
+  geom_text(data = arrows, aes(x = ax, y = yend, label = lab), inherit.aes = FALSE,
+            vjust = ifelse(arrows$yend > 0, -0.5, 1.5), size = 3) +
+  scale_x_continuous(breaks = 0:2, limits = c(-0.45, 2.85)) +
   scale_fill_manual(values = GENO_COLS, guide = 'none') +
   scale_colour_manual(values = GENO_COLS, guide = 'none') +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.08))) +
@@ -260,5 +271,5 @@ pl <- ggplot(pd, aes(rs697676, z)) +
   theme_minimal(base_size = 9) + theme(plot.title = element_text(hjust = 0.5))
 
 pdfOut <- file.path(OUT_DIR, paste0(PGS_ID, '_by_', SNP, '.pdf'))
-pdf(pdfOut, width = 4.5, height = 4.2); print(pl); invisible(dev.off())
+pdf(pdfOut, width = 5, height = 4.2); print(pl); invisible(dev.off())
 message('Wrote ', pdfOut)
