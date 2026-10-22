@@ -59,6 +59,7 @@ how it is run, and which figure or table it produces. Everything is in R.
 | 20 | `20_chenComparison.R` | `.sh` | Interaction model applied to the Chen et al. associations; AIF1 example |
 | 21 | `21_chenComparison.R` | `.sh` | Chen et al. Supplementary Data 2 tests within the TSS window, merged per tissue with the cd-eQTL scan |
 | 21 | `21_supplementaryWorkbook.R` | none | All supplementary tables in one workbook with legends |
+| 22 | `22_figure6_chronotype.R` | `.sh` | Chronotype loci (CIART, PER3, PER3 antisense): rhythm curves by genotype; variant annotation |
 
 Dependencies: 02 needs 01; 03 needs 01; 04 needs 02 and 03; all later steps need 04.
 Beyond that: 08 needs 07, 10 needs 09, 12 and 13 need 11, 15 needs 14, 16 needs 15,
@@ -75,6 +76,7 @@ Beyond that: 08 needs 07, 10 needs 09, 12 and 13 need 11, 15 needs 14, 16 needs 
 | Figure 3c-f | 17 (data from 14) | `Figures/Figure_3{c,d}_*_amplitude`, `Figure_3{e,f}_*_phase` |
 | Figure 4 | 16 (data from 14) | `Figures/Figure_4_cosineSimilarity` |
 | Figure 5 | 19 | `Figures/Figure_5_PheWAS` |
+| Figure 6 | 22 | `Figures/Figure_6_chronotype` |
 | Supplementary Figure 1 | 12 (data from 11) | `Supplementary_Figures/SuppFigure_1_dryRModelSelection` |
 | Supplementary Figure 2 | 10 (data from 09) | `Supplementary_Figures/SuppFigure_2{a,b}_EffectSizeComparison_*` |
 | Supplementary Figure 3 | 16 (data from 15) | `Supplementary_Figures/SuppFigure_3_cosineSimilarityInteraction` |
