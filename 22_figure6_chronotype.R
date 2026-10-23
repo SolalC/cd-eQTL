@@ -1,11 +1,11 @@
 # =============================================================================
 # 22  Figure 6: cd-eQTL of the chronotype loci (PheWAS, 19)
 #
-#   A  CIART           ~ rs2147324   lead cd-eQTL, in its cd-eQTL tissue
-#   B  PER3            ~ rs3135419   lead cd-eQTL, in its cd-eQTL tissue
-#   C  ENSG00000236266 ~ rs697676    lead cd-eQTL, in its cd-eQTL tissue (Ovary)
-#   D  PER3            ~ rs697676    same variant and tissue as C
-# The tissues of A-C are read from Supplementary Table 3; D uses the tissue of C.
+#   a  CIART           ~ rs2147324   lead cd-eQTL, in its cd-eQTL tissue
+#   b  PER3            ~ rs3135419   lead cd-eQTL, in its cd-eQTL tissue
+#   c  ENSG00000236266 ~ rs697676    lead cd-eQTL, in its cd-eQTL tissue (Ovary)
+#   d  PER3            ~ rs697676    same variant and tissue as c
+# The tissues of a-c are read from Supplementary Table 3; d uses the tissue of c.
 #
 # Each panel: covariate-adjusted expression against DIP by genotype, with the
 # interaction-model (M3) curve of each genotype and its 95% band. Models as in
@@ -30,10 +30,10 @@ options(bitmapType = 'cairo')
 
 PANELS <- tibble::tribble(
   ~tag, ~symbol,           ~gene,             ~variant,
-  'A',  'CIART',           'ENSG00000159208', 'rs2147324',
-  'B',  'PER3',            'ENSG00000049246', 'rs3135419',
-  'C',  'ENSG00000236266', 'ENSG00000236266', 'rs697676',
-  'D',  'PER3',            'ENSG00000049246', 'rs697676')
+  'a',  'CIART',           'ENSG00000159208', 'rs2147324',
+  'b',  'PER3',            'ENSG00000049246', 'rs3135419',
+  'c',  'ENSG00000236266', 'ENSG00000236266', 'rs697676',
+  'd',  'PER3',            'ENSG00000049246', 'rs697676')
 
 # Genotype colours as in the rs697676 figure (met.brewer('Degas', n = 3))
 GENO_COLS  <- c('0' = '#96410e', '1' = '#e5a335', '2' = '#556219')
@@ -43,7 +43,7 @@ toHour <- function(r) (r %% (2 * pi)) / (2 * pi) * 24
 # --- Tissues from Supplementary Table 3 ------------------------------------------
 supTable3 <- fread(paste0(TABLE_DIR, 'SupTable_3_cdEQTL_54independent.csv')) %>%
   mutate(geneId = sub('\\..*', '', gene))
-lead <- PANELS %>% filter(tag != 'D') %>%
+lead <- PANELS %>% filter(tag != 'd') %>%
   left_join(supTable3 %>% select(geneId, variant, tissue, p_table = p.value),
             by = c('gene' = 'geneId', 'variant'))
 if (any(is.na(lead$tissue))) stop('Not in Supplementary Table 3: ',
@@ -55,7 +55,7 @@ if (anyDuplicated(lead$tag)) {
 }
 PANELS <- PANELS %>%
   left_join(lead %>% select(tag, tissue, p_table), by = 'tag') %>%
-  mutate(tissue = ifelse(tag == 'D', tissue[tag == 'C'], tissue))
+  mutate(tissue = ifelse(tag == 'd', tissue[tag == 'c'], tissue))
 
 # --- Genotypes: read only the requested variants from the plink .bed --------------
 # SNP-major .bed: 3 magic bytes, then ceiling(n/4) bytes per variant, 2 bits per
@@ -168,7 +168,7 @@ fits <- lapply(seq_len(nrow(PANELS)), function(k)
   with(PANELS[k, ], fitPanel(data[[tissue]], gene, variant)))
 res <- bind_cols(PANELS, rbindlist(lapply(fits, `[[`, 'fit'))) %>%
   left_join(gt$info %>% select(variant, counted_allele, other_allele), by = 'variant')
-message('cd-eQTL LRT here vs Supplementary Table 3 (should agree for A-C):')
+message('cd-eQTL LRT here vs Supplementary Table 3 (should agree for a-c):')
 print(res %>% select(tag, symbol, variant, tissue, n, p_cdeqtl, p_table), digits = 3)
 fwrite(res, paste0(FIG_DIR, 'Figure_6_chronotype_fits.csv'))
 
